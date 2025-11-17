@@ -155,6 +155,35 @@ class FieldEditText :
         return SavedState(state, ord)
     }
 
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent?,
+    ): Boolean {
+        // Fix for issue #19498: Backspace after Ctrl+X cuts multiple characters
+        // Root cause: After cut removes text, the next backspace still uses the old selection range
+        // Solution: Let parent handle cut normally, but then force Editor to refresh selection state
+        if (keyCode == KeyEvent.KEYCODE_X && event?.isCtrlPressed == true) {
+            val wasStart = selectionStart
+            val wasEnd = selectionEnd
+
+            // Let parent class handle the cut operation normally
+            val result = super.onKeyDown(keyCode, event)
+
+            // If cut was successful and there was a selection
+            if (result && wasStart != wasEnd) {
+                // Force Android's Editor to refresh its internal selection state
+                // by calling onSelectionChanged which invalidates cached selection
+                post {
+                    onSelectionChanged(selectionStart, selectionEnd)
+                }
+            }
+
+            return result
+        }
+
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onTextContextMenuItem(id: Int): Boolean {
         // The current function is called both by Ctrl+V and pasting from the context menu
         // It does not deal with drag and drop
