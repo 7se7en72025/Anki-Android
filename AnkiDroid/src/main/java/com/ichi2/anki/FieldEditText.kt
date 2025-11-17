@@ -164,6 +164,7 @@ class FieldEditText :
         event: KeyEvent?,
     ): Boolean {
         // Handle Ctrl+X (cut operation) to fix backspace behavior after cut
+        // Issue #19504: Backspace deletes multiple characters after cut operation
         // Core issue: When text is deleted via cut, Android Editor's internal mSelectedText
         // and selection cache isn't invalidated. The next key press (e.g., backspace)
         // uses the old cached selection causing multi-char deletion.
