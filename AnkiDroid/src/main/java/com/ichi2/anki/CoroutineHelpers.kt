@@ -19,9 +19,7 @@ package com.ichi2.anki
 import android.app.Activity
 import android.app.Dialog
 import android.content.Context
-import android.content.DialogInterface
 import android.net.Uri
-import android.view.WindowManager
 import android.view.WindowManager.BadTokenException
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
@@ -425,62 +423,15 @@ suspend fun <T> withProgressDialog(
     op: suspend (android.app.ProgressDialog) -> T,
 ): T =
     coroutineScope {
-        val dialog =
-            android.app.ProgressDialog(context, R.style.AppCompatProgressDialogStyle).apply {
-                setCancelable(onCancel != null)
-                if (manualCancelButton != null) {
-                    setCancelable(false)
-                    setButton(DialogInterface.BUTTON_NEGATIVE, context.getString(manualCancelButton)) { _, _ ->
-                        Timber.i("Progress dialog cancelled via cancel button")
-                        onCancel?.let { it() }
-                    }
-                } else {
-                    onCancel?.let {
-                        setOnCancelListener {
-                            Timber.i("Progress dialog cancelled via cancel listener")
-                            it()
-                        }
-                    }
-                }
-            }
-        // disable taps immediately
-        context.runOnUiThread {
-            context.window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
-        }
-        // reveal the dialog after 600ms
-        var dialogIsOurs = false
-        val dialogJob =
-            launch {
-                delay(delayMillis)
-                if (!AnkiDroidApp.instance.progressDialogShown) {
-                    Timber.i(
-                        """Displaying progress dialog: ${delayMillis}ms elapsed; 
-                |cancellable: ${onCancel != null}; 
-                |manualCancel: ${manualCancelButton != null}
-                |
-                        """.trimMargin(),
-                    )
-                    dialog.show()
-                    AnkiDroidApp.instance.progressDialogShown = true
-                    dialogIsOurs = true
-                } else {
-                    Timber.w(
-                        """A progress dialog is already displayed, not displaying progress dialog: 
-                |cancellable: ${onCancel != null}; 
-                |manualCancel: ${manualCancelButton != null}
-                |
-                        """.trimMargin(),
-                    )
-                }
-            }
+        val owner = ProgressDialogManager.newOwnerToken()
+        val dialog = ProgressDialogManager.showWithDelay(owner, context, delayMillis, onCancel, manualCancelButton)
         try {
             op(dialog)
         } finally {
-            dialogJob.cancel()
-            dismissDialogIfShowing(dialog)
-            context.runOnUiThread { context.window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) }
-            if (dialogIsOurs) {
-                AnkiDroidApp.instance.progressDialogShown = false
+            try {
+                ProgressDialogManager.hide(owner)
+            } catch (e: Exception) {
+                Timber.w(e, "withProgressDialog: failed to hide progress dialog via manager")
             }
         }
     }

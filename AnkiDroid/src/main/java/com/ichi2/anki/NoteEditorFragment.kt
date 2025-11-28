@@ -2154,19 +2154,12 @@ class NoteEditorFragment :
                 withCol {
                     NoteService.importMediaToDirectory(this, field)
                 }
+            } catch (e: com.ichi2.anki.libanki.exception.MediaSizeLimitExceededException) {
+                // Typed exception contains the file name and size — avoid parsing exception messages
+                showLargeMediaFileWarning(e.fileName, e.fileSize, field, index, fieldEditText)
+                return@launch
             } catch (e: IllegalArgumentException) {
-                // Check if this is a media size limit exception
-                val message = e.message ?: ""
-                if (message.startsWith("MEDIA_SIZE_LIMIT_EXCEEDED:")) {
-                    val parts = message.substringAfter("MEDIA_SIZE_LIMIT_EXCEEDED: ").split("|")
-                    if (parts.size == 3) {
-                        val fileName = parts[0]
-                        val fileSize = parts[1].toLongOrNull() ?: 0L
-                        showLargeMediaFileWarning(fileName, fileSize, field, index, fieldEditText)
-                        return@launch
-                    }
-                }
-                // Re-throw if not a media size exception
+                // Any other illegal-argument should be re-thrown
                 throw e
             }
 

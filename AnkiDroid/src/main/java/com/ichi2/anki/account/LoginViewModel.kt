@@ -88,7 +88,12 @@ class LoginViewModel : ViewModel() {
                 updateLogin(username, auth.hkey)
                 _loginState.value = LoginState.Success
             } catch (exc: BackendSyncException.BackendSyncAuthFailedException) {
+                // Authentication failures should clear any stored credentials and surface an error
                 updateLogin("", "")
+                _loginState.value = LoginState.Error(exc)
+            } catch (exc: Exception) {
+                // Catch any unexpected exceptions (e.g. network errors) so the UI can show them
+                // rather than letting them bubble up to the global uncaught exception handler
                 _loginState.value = LoginState.Error(exc)
             }
         }

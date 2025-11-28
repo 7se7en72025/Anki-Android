@@ -66,8 +66,10 @@ open class Media(
             throw EmptyMediaException()
         }
         if (oFile.length() > ANKIWEB_MAX_MEDIA_FILE_SIZE) {
-            throw IllegalArgumentException(
-                "MEDIA_SIZE_LIMIT_EXCEEDED: ${oFile.name}|${oFile.length()}|$ANKIWEB_MAX_MEDIA_FILE_SIZE",
+            throw com.ichi2.anki.libanki.exception.MediaSizeLimitExceededException(
+                fileName = oFile.name,
+                fileSize = oFile.length(),
+                maxAllowedBytes = ANKIWEB_MAX_MEDIA_FILE_SIZE,
             )
         }
         Timber.v("dir now %s", dir)
