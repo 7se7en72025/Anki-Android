@@ -348,7 +348,7 @@ object CollectionHelper {
         }
 
     /**
-     * Resets the AnkiDroid directory to [directory]
+     * Resets the AnkiDroid directory to [directory], or the default AnkiDroid directory if not specified.
      * Note: if [android.R.attr.preserveLegacyExternalStorage] is in use
      * this will represent a change from `/AnkiDroid` to `/Android/data/...`
      *
