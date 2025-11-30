@@ -235,7 +235,7 @@ class DevOptionsFragment : SettingsFragment() {
                     withCol {
                         val deck = decks.addNormalDeckWithName(deckName(i))
                         addNote(
-                            newNote(notetypes.current()).apply { setField(0, "$i") },
+                            newNote(notetypes.get(defaultsForAdding().notetypeId)!!).apply { setField(0, "$i") },
                             deck.id,
                         )
                     }
