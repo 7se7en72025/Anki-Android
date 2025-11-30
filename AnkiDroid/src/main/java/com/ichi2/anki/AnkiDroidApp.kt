@@ -206,21 +206,8 @@ open class AnkiDroidApp :
             try {
                 CollectionHelper.getCurrentAnkiDroidDirectory(this)
             } catch (e: SystemStorageException) {
-                // If external storage is not available, try to use internal storage as a fallback
-                Timber.e(e, "External storage not available, attempting to use internal storage")
-                try {
-                    val internalDir = CollectionHelper.getInternalAnkiDroidDirectory(this)
-                    // Update preferences to use internal storage path so subsequent calls work
-                    sharedPrefs().edit {
-                        putString(CollectionHelper.PREF_COLLECTION_PATH, internalDir.absolutePath)
-                    }
-                    Timber.i("Successfully configured internal storage fallback: ${internalDir.absolutePath}")
-                    internalDir
-                } catch (fallbackError: Exception) {
-                    Timber.e(fallbackError, "Internal storage fallback also failed")
-                    fatalInitializationError = FatalInitializationError.StorageError(e)
-                    null
-                }
+                fatalInitializationError = FatalInitializationError.StorageError(e)
+                null
             }
         // Create the AnkiDroid directory if missing. Send exception report if inaccessible.
         if (ankiDroidDir != null && Permissions.hasLegacyStorageAccessPermission(this)) {
@@ -228,14 +215,10 @@ open class AnkiDroidApp :
                 CollectionHelper.initializeAnkiDroidDirectory(ankiDroidDir)
             } catch (e: StorageAccessException) {
                 Timber.e(e, "Could not initialize AnkiDroid directory")
-                try {
-                    val defaultDir = CollectionHelper.getDefaultAnkiDroidDirectory(this)
-                    if (isSdCardMounted && CollectionHelper.getCurrentAnkiDroidDirectory(this) == defaultDir) {
-                        // Don't send report if the user is using a custom directory as SD cards trip up here a lot
-                        sendExceptionReport(e, "AnkiDroidApp.onCreate")
-                    }
-                } catch (storageException: SystemStorageException) {
-                    Timber.e(storageException, "Could not get default directory for comparison")
+                val defaultDir = CollectionHelper.getDefaultAnkiDroidDirectory(this)
+                if (isSdCardMounted && CollectionHelper.getCurrentAnkiDroidDirectory(this) == defaultDir) {
+                    // Don't send report if the user is using a custom directory as SD cards trip up here a lot
+                    sendExceptionReport(e, "AnkiDroidApp.onCreate")
                 }
             }
         }
