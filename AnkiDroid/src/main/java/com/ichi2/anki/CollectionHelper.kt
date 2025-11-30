@@ -103,14 +103,37 @@ object CollectionHelper {
      * @return whether or not dir is accessible
      * @param context to get directory with
      */
-    fun isCurrentAnkiDroidDirAccessible(context: Context): Boolean =
+    fun isCurrentAnkiDroidDirAccessible(context: Context): Boolean {
         try {
-            initializeAnkiDroidDirectory(getCurrentAnkiDroidDirectory(context))
-            true
+            val dir =
+                try {
+                    getCurrentAnkiDroidDirectory(context)
+                } catch (e: SystemStorageException) {
+                    // If external storage is not available, try to use internal storage as a fallback
+                    Timber.w(e, "isCurrentAnkiDroidDirAccessible: External storage not available, trying internal storage")
+                    try {
+                        val internalDir = getInternalAnkiDroidDirectory(context)
+                        // Update preferences so subsequent calls use internal storage
+                        context.sharedPrefs().edit {
+                            putString(PREF_COLLECTION_PATH, internalDir.absolutePath)
+                        }
+                        internalDir
+                    } catch (fallbackError: Exception) {
+                        Timber.e(fallbackError, "isCurrentAnkiDroidDirAccessible: Internal storage fallback failed")
+                        // Rethrow the original exception since we couldn't fall back
+                        throw e
+                    }
+                }
+            initializeAnkiDroidDirectory(dir)
+            return true
         } catch (e: StorageAccessException) {
             Timber.w(e)
-            false
+            return false
+        } catch (e: SystemStorageException) {
+            Timber.w(e, "isCurrentAnkiDroidDirAccessible: Storage system exception")
+            return false
         }
+    }
 
     /**
      * Get the absolute path to a directory that is suitable to be the default starting location
