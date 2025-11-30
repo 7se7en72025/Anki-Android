@@ -39,7 +39,7 @@ class DeckPickerNoExternalFilesDirTest : RobolectricTest() {
         // instead of showing a fatal error (issue #19652)
 
         // IntroductionActivity should be skipped by our code
-        getPreferences().edit { putBoolean(IntroductionActivity.INTRODUCTION_SLIDES_SHOWN, false) }
+        getPreferences().edit { putBoolean(IntroductionActivity.INTRODUCTION_SLIDES_SHOWN, true) }
 
         // App should start successfully using internal storage fallback
         val activity = startActivityNormallyOpenCollectionWithIntent(DeckPicker::class.java, Intent())
