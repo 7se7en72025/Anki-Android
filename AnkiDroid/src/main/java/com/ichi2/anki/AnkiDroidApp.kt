@@ -230,12 +230,14 @@ open class AnkiDroidApp :
                 Timber.e(e, "Could not initialize AnkiDroid directory")
                 try {
                     val defaultDir = CollectionHelper.getDefaultAnkiDroidDirectory(this)
-                    if (isSdCardMounted && CollectionHelper.getCurrentAnkiDroidDirectory(this) == defaultDir) {
-                        // Don't send report if the user is using a custom directory as SD cards trip up here a lot
+                    val internalDir = CollectionHelper.getInternalAnkiDroidDirectory(this)
+                    val currentDir = CollectionHelper.getCurrentAnkiDroidDirectory(this)
+                    if (isSdCardMounted && (currentDir == defaultDir || currentDir == internalDir)) {
+                        // Send report if the user is using the default or internal fallback directory
                         sendExceptionReport(e, "AnkiDroidApp.onCreate")
                     }
                 } catch (storageException: SystemStorageException) {
-                    Timber.e(storageException, "Could not get default directory for comparison")
+                    Timber.e(storageException, "Could not get default/internal directory for comparison")
                 }
             }
         }
