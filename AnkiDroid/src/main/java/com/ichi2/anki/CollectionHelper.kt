@@ -105,25 +105,7 @@ object CollectionHelper {
      */
     fun isCurrentAnkiDroidDirAccessible(context: Context): Boolean {
         try {
-            val dir =
-                try {
-                    getCurrentAnkiDroidDirectory(context)
-                } catch (e: SystemStorageException) {
-                    // If external storage is not available, try to use internal storage as a fallback
-                    Timber.w(e, "isCurrentAnkiDroidDirAccessible: External storage not available, trying internal storage")
-                    try {
-                        val internalDir = getInternalAnkiDroidDirectory(context)
-                        // Update preferences so subsequent calls use internal storage
-                        context.sharedPrefs().edit {
-                            putString(PREF_COLLECTION_PATH, internalDir.absolutePath)
-                        }
-                        internalDir
-                    } catch (fallbackError: Exception) {
-                        Timber.e(fallbackError, "isCurrentAnkiDroidDirAccessible: Internal storage fallback failed")
-                        // Rethrow the original exception since we couldn't fall back
-                        throw e
-                    }
-                }
+            val dir = getCurrentAnkiDroidDirectoryWithFallback(context)
             initializeAnkiDroidDirectory(dir)
             return true
         } catch (e: StorageAccessException) {
@@ -291,6 +273,37 @@ object CollectionHelper {
     fun getInternalAnkiDroidDirectory(context: Context): File = File(getAppSpecificInternalAnkiDroidDirectory(context), "AnkiDroid")
 
     /**
+     * Gets the current AnkiDroid directory with automatic fallback to internal storage.
+     *
+     * This method first tries to get the current directory using [getCurrentAnkiDroidDirectory].
+     * If that fails due to external storage being unavailable (SystemStorageException),
+     * it falls back to internal storage and updates SharedPreferences to persist this choice.
+     *
+     * @param context Application context
+     * @return File object pointing to the AnkiDroid directory (external or internal fallback)
+     * @throws SystemStorageException if both external and internal storage fail
+     */
+    fun getCurrentAnkiDroidDirectoryWithFallback(context: Context): File =
+        try {
+            getCurrentAnkiDroidDirectory(context)
+        } catch (e: SystemStorageException) {
+            Timber.w(e, "External storage not available, trying internal storage fallback")
+            try {
+                val internalDir = getInternalAnkiDroidDirectory(context)
+                // Update preferences so subsequent calls use internal storage
+                context.sharedPrefs().edit {
+                    putString(PREF_COLLECTION_PATH, internalDir.absolutePath)
+                }
+                Timber.i("Successfully configured internal storage fallback: ${internalDir.absolutePath}")
+                internalDir
+            } catch (fallbackError: Exception) {
+                Timber.e(fallbackError, "Internal storage fallback also failed")
+                // Rethrow the original exception since we couldn't fall back
+                throw e
+            }
+        }
+
+    /**
      * @return the path to the actual [Collection] file
      *
      * @throws UnsupportedOperationException if the collection is in-memory
@@ -348,13 +361,15 @@ object CollectionHelper {
         }
 
     /**
-     * Resets the AnkiDroid directory to the [getDefaultAnkiDroidDirectory]
-     * Note: if [android.R.attr.preserveLegacyExternalStorage] is in use
-     * this will represent a change from `/AnkiDroid` to `/Android/data/...`
+     * Resets the AnkiDroid directory to the specified directory.
+     * @param context Application context
+     * @param directory The directory to set as the new AnkiDroid directory
      */
-    fun resetAnkiDroidDirectory(context: Context) {
+    fun resetAnkiDroidDirectory(
+        context: Context,
+        directory: File,
+    ) {
         val preferences = context.sharedPrefs()
-        val directory = getDefaultAnkiDroidDirectory(context)
         Timber.d("resetting AnkiDroid directory to %s", directory)
         preferences.edit { putString(PREF_COLLECTION_PATH, directory.absolutePath) }
     }
