@@ -30,6 +30,7 @@ import android.os.Environment
 import android.system.Os
 import android.webkit.CookieManager
 import androidx.annotation.VisibleForTesting
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.MutableLiveData
@@ -210,10 +211,9 @@ open class AnkiDroidApp :
                 try {
                     val internalDir = CollectionHelper.getInternalAnkiDroidDirectory(this)
                     // Update preferences to use internal storage path so subsequent calls work
-                    sharedPrefs()
-                        .edit()
-                        .putString(CollectionHelper.PREF_COLLECTION_PATH, internalDir.absolutePath)
-                        .apply()
+                    sharedPrefs().edit {
+                        putString(CollectionHelper.PREF_COLLECTION_PATH, internalDir.absolutePath)
+                    }
                     Timber.i("Successfully configured internal storage fallback: ${internalDir.absolutePath}")
                     internalDir
                 } catch (fallbackError: Exception) {
