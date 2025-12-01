@@ -17,15 +17,26 @@
 package com.ichi2.anki
 
 import android.content.Context
-import android.content.Intent
-import androidx.core.content.edit
+import androidx.appcompat.app.AlertDialog
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ichi2.anki.dialogs.utils.ankiListView
+import com.ichi2.anki.dialogs.utils.message
+import com.ichi2.anki.dialogs.utils.title
+import com.ichi2.testutils.TestException
+import com.ichi2.testutils.withNoWritePermission
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkAll
+import org.hamcrest.CoreMatchers.containsString
+import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
+import org.robolectric.shadows.ShadowDialog
 import java.io.File
 
 @RunWith(AndroidJUnit4::class)
@@ -33,25 +44,41 @@ import java.io.File
 class DeckPickerNoExternalFilesDirTest : RobolectricTest() {
     // TODO: @Config(sdk = [Build.VERSION_CODES.BAKLAVA]) // Bug 460912704 occurs on Android 16
     @Test
-    fun `App uses internal storage fallback when getExternalFilesDir is null`() {
-        // When external storage is unavailable (getExternalFilesDir returns null),
-        // the app should fall back to internal storage and start successfully
-        // instead of showing a fatal error (issue #19652)
+    fun `Fatal error is shown on fresh startup getExternalFilesDir is null`() {
+        // Currently undefined if we should fail when PREF_COLLECTION_PATH is set
+        //  but getExternalFilesDir returns null
 
         // IntroductionActivity should be skipped by our code
         getPreferences().edit { putBoolean(IntroductionActivity.INTRODUCTION_SLIDES_SHOWN, true) }
 
-        // App should start successfully using internal storage fallback
-        val activity = startActivityNormallyOpenCollectionWithIntent(DeckPicker::class.java, Intent())
+    @Test
+    fun `fatal error is shown after 'Create a new collection' and getExternalFilesDir is null`() =
+        try {
+            AnkiDroidApp.clearFatalError()
+            withNoWritePermission {
+                CollectionHelper.ankiDroidDirectoryOverride = tempFolder.newFolder()
 
-        // Verify the app started successfully - if a fatal error occurred,
-        // the activity would not be in RESUMED state
-        assertThat(
-            "App should successfully start using internal storage fallback",
-            activity.isFinishing,
-            org.hamcrest.CoreMatchers.equalTo(false),
-        )
-    }
+                mockkObject(CollectionHelper, CollectionManager, AnkiDroidApp)
+                every { CollectionHelper.isCurrentAnkiDroidDirAccessible(any()) } returns false
+                every { CollectionManager.getColUnsafe() } throws TestException("")
+                every { AnkiDroidApp.isSdCardMounted } returns true
+
+                setIntroductionSlidesShown(true)
+
+                deckPicker {
+                    (ShadowDialog.getLatestDialog() as AlertDialog).also { dialog ->
+                        assertThat(dialog.title, equalTo("Inaccessible collection"))
+                        shadowOf(dialog.ankiListView).clickFirstItemContainingText("Create a new collection")
+                    }
+
+                    val dialog = (ShadowDialog.getLatestDialog() as AlertDialog)
+                    assertThat(dialog.message, containsString("getExternalFilesDir unexpectedly returned null"))
+                }
+            }
+        } finally {
+            CollectionHelper.ankiDroidDirectoryOverride = null
+            unmockkAll()
+        }
 }
 
 /**
