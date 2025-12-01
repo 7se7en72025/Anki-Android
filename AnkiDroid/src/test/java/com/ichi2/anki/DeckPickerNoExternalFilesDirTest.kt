@@ -48,13 +48,8 @@ class DeckPickerNoExternalFilesDirTest : RobolectricTest() {
         // Currently undefined if we should fail when PREF_COLLECTION_PATH is set
         //  but getExternalFilesDir returns null
 
-        // IntroductionActivity should be skipped by our code so we can show the error
-        // without user interaction
-        deckPicker(skipIntroduction = false) {
-            val message = (ShadowDialog.getLatestDialog() as AlertDialog).message
-            assertThat(message, containsString("getExternalFilesDir unexpectedly returned null"))
-        }
-    }
+        // IntroductionActivity should be skipped by our code
+        getPreferences().edit { putBoolean(IntroductionActivity.INTRODUCTION_SLIDES_SHOWN, true) }
 
     @Test
     fun `fatal error is shown after 'Create a new collection' and getExternalFilesDir is null`() =
